@@ -1,0 +1,39 @@
+\section{Introduction}
+\label{sec:intro}
+
+Captchas have evolved from distorted text images to dynamic, multi-step challenges
+designed to resist automation while remaining trivially solvable by humans.
+A recent class of video-editing captchas presents users with a short clip and a natural-language
+instruction such as ``reverse the video, then flip it horizontally.''
+Following these instructions reveals an embedded alphanumeric key that serves as the captcha answer.
+A human solves this in seconds; an automated agent must parse the instruction,
+execute the correct sequence of video transformations, and extract the now-visible key---
+a compound task spanning language understanding, procedural execution, and visual perception.
+
+Despite the proliferation of video-capable VLMs~\citep{gpt4o,gemini,qwen2vl},
+no benchmark systematically tests this compound capability.
+Existing video benchmarks target temporal reasoning~\citep{videomme,longvideobench}
+or egocentric understanding~\citep{ego4d}, not instruction-conditioned video manipulation.
+Video-editing benchmarks~\citep{vbench,editbench} evaluate generative models rather than agents.
+CIPHER fills this gap.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+  \item \textbf{Task formulation.} We define the video-editing captcha solving task
+        as a three-stage pipeline: instruction parsing (S1), ffmpeg execution (S2),
+        and key extraction (S3), enabling fine-grained per-stage diagnostics.
+
+  \item \textbf{Benchmark.} CIPHER provides 250 procedurally generated samples
+        across five difficulty levels (L1--L5), varying key visibility,
+        operation count (1--4 ops), and instruction ambiguity (exact to compositional).
+        Backgrounds are drawn from Kinetics-400 to ensure visual diversity.
+
+  \item \textbf{Metrics.} We propose \emph{Pipeline-F1}, a weighted combination of
+        per-stage scores ($0.25 \cdot \text{S1} + 0.25 \cdot \text{S2} + 0.50 \cdot \text{S3}$),
+        alongside strict exact match (EM) and character-level F1.
+
+  \item \textbf{Baselines.} We benchmark OCR-only, Claude Haiku, GPT-4o-mini,
+        Gemini Flash, and local open-weight models (Qwen2-VL-7B/72B),
+        revealing that S1 parsing saturates quickly while S3 extraction
+        on natural backgrounds remains the binding bottleneck.
+\end{enumerate}

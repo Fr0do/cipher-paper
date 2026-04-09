@@ -1,0 +1,40 @@
+\section{Analysis}
+\label{sec:analysis}
+
+% TODO: fill after results. Placeholder structure below.
+
+\subsection{Stage bottleneck analysis}
+
+We decompose failures by stage to identify where the pipeline breaks down.
+Figure~\ref{fig:stage_breakdown} shows per-level S1/S2/S3 scores for each model.
+
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=\linewidth]{figures/stage_breakdown.pdf}
+% \caption{Stage scores by level and model.}
+% \label{fig:stage_breakdown}
+% \end{figure}
+
+\paragraph{S1 (parsing)} saturates quickly across models: even OCR-only achieves high
+parse F1 on L1--L3 via regex matching. L5 compositional instructions are the exception,
+where VLM-based parsing is required.
+
+\paragraph{S2 (execution)} failures are rare on L1--L2 but increase with op count (L4--L5),
+primarily due to ffmpeg filter chain errors when ops compose non-trivially.
+
+\paragraph{S3 (extraction)} is the binding bottleneck. OCR performance degrades
+monotonically with key visibility; VLMs recover partially via visual reasoning
+but remain below human performance at L4--L5.
+
+\subsection{NL ambiguity ablation}
+
+Holding key visibility and op count fixed (L2 vs.\ L3), we isolate the effect of
+instruction paraphrase. Parse F1 drops by $\Delta$ on paraphrase vs.\ exact phrasing,
+with most errors on speed and rotation ops where synonym coverage is lowest.
+
+\subsection{Background influence}
+
+All backgrounds are drawn from Kinetics-400 (natural track).
+As a diagnostic, we rerun OCR-only on a 50-sample clean-background subset (BBB clips).
+CharF1 improves by $\Delta$, confirming that natural backgrounds introduce
+measurable OCR distraction even at high key visibility.

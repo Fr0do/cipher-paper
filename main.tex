@@ -1,0 +1,58 @@
+\documentclass{article}
+
+% NeurIPS 2026 style
+\usepackage[preprint]{neurips_2025}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{subcaption}
+
+\title{CIPHER: A Benchmark for Captcha Instruction Parsing with Hidden Extraction and Reasoning}
+
+\author{%
+  Maxim Kurkin \\
+  \texttt{kurkin@2a2i.org}
+}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\begin{abstract}
+We introduce \textbf{CIPHER} (\textbf{C}aptcha \textbf{I}nstruction \textbf{P}arsing with
+\textbf{H}idden \textbf{E}xtraction and \textbf{R}easoning), a procedurally generated benchmark
+for evaluating vision-language models (VLMs) on video-editing captcha tasks.
+In CIPHER, an agent receives a short video clip together with natural-language editing
+instructions (e.g.\ ``reverse the video, then flip horizontally'') and must
+(i)~parse the instructions into a sequence of edit operations,
+(ii)~execute those operations via \texttt{ffmpeg}, and
+(iii)~extract a short alphanumeric key that becomes visible in the correctly edited result.
+The benchmark spans five difficulty levels that independently vary key visibility,
+operation count, and instruction ambiguity, yielding \num{250} procedurally generated samples
+backed by diverse Kinetics-400 background clips.
+We evaluate OCR-only baselines and a suite of frontier VLMs, finding that
+\ldots % TODO: fill in main finding
+CIPHER reveals a clear capability gap between stages: instruction parsing saturates early
+while key extraction from realistic backgrounds remains an open challenge.
+\end{abstract}
+
+% ============================================================
+\input{sections/01_intro}
+\input{sections/02_task}
+\input{sections/03_benchmark}
+\input{sections/04_experiments}
+\input{sections/05_analysis}
+\input{sections/06_conclusion}
+
+\bibliography{references}
+\bibliographystyle{plainnat}
+
+\end{document}

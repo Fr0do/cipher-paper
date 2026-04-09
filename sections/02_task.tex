@@ -1,0 +1,27 @@
+\section{Task Definition}
+\label{sec:task}
+
+\paragraph{Setting.}
+An agent receives $(v, \mathcal{I})$: a short video clip $v$ (15s, 360--720p)
+and a natural-language string $\mathcal{I}$ describing a sequence of video edits.
+The agent must return $\hat{k}$ matching the ground-truth key $k^*$ embedded in $v$.
+
+\paragraph{Ground-truth construction.}
+\begin{enumerate}
+  \item Key $k^* \in \Sigma^7$ drawn from unambiguous alphanumerics
+        ($\Sigma = \text{A--Z} \cup \text{2--9} \setminus \{\text{O,0,I,1}\}$).
+  \item $k^*$ rendered as text, composited onto background for window $[t_s, t_e]$.
+  \item Op sequence $\mathbf{o}=(o_1,\ldots,o_n)$ applied to produce scrambled $v'$.
+  \item Instructions $\mathcal{I}$ generated from $\mathbf{o}$ via paraphrase template.
+\end{enumerate}
+
+\paragraph{Three-stage pipeline.}
+\begin{description}
+  \item[S1 Parse:] $\mathcal{I} \to \hat{\mathbf{o}}$. Score: sequence-aware op F1.
+  \item[S2 Execute:] run \texttt{ffmpeg}($\hat{\mathbf{o}}$). Score: binary validity.
+  \item[S3 Extract:] read $\hat{k}$ from edited video. Score: CharF1 + EM.
+\end{description}
+
+\paragraph{Operations.}
+Seven composable ffmpeg ops: \texttt{reverse}, \texttt{hflip}, \texttt{vflip},
+\texttt{rotate90}, \texttt{rotate270}, \texttt{speed2x}, \texttt{grayscale}.

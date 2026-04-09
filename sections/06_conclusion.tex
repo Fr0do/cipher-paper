@@ -1,0 +1,29 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We introduced CIPHER, a procedurally generated benchmark for video-editing captcha solving
+that stress-tests VLMs on a compound task: parsing natural-language edit instructions,
+executing an ffmpeg transformation chain, and extracting a hidden key from the result.
+The three-stage pipeline structure and PipeF1 metric enable fine-grained diagnosis
+of where agent capability breaks down.
+
+Our experiments reveal a consistent pattern: S1 parsing is handled well by
+regex baselines and saturates early, S2 execution is robust for short op chains,
+and S3 key extraction on natural backgrounds is the primary bottleneck
+for all evaluated models. The gap between L1 and L5 EM exceeds 40 points,
+indicating substantial headroom for future work.
+
+\paragraph{Limitations.}
+CIPHER focuses on seven deterministic ffmpeg operations;
+generative edits (e.g., inpainting, style transfer) and audio-only keys are out of scope.
+Human baselines are not included in this version.
+
+\paragraph{Future work.}
+L6 (QR/morse key encoding), multi-agent solving, and adversarial instruction generation
+are natural extensions. The procedural generator enables zero-cost dataset refresh,
+making CIPHER suitable for ongoing leaderboard tracking.
+
+\paragraph{Reproducibility.}
+All code and generation scripts are released at
+\url{https://github.com/Fr0do/cipher}.
+The test manifest (seeds 0--49) is pinned at commit \texttt{TODO}.

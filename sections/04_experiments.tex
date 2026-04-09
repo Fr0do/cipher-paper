@@ -1,0 +1,42 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Models}
+
+We benchmark the following agents, all using the same three-stage pipeline
+(Section~\ref{sec:task}) with per-model VLM backends:
+
+\begin{itemize}
+  \item \textbf{OCR-only} (baseline): easyocr on sampled frames; no VLM.
+  \item \textbf{Claude Haiku}: \texttt{claude-haiku-4-5} via Anthropic API.
+  \item \textbf{GPT-4o-mini}: \texttt{gpt-4o-mini} via OpenAI API.
+  \item \textbf{Gemini Flash}: \texttt{gemini-2.0-flash} via Google API.
+  \item \textbf{Qwen2-VL-7B}: open-weight, served locally on 4$\times$H100.
+  \item \textbf{Qwen2-VL-72B}: open-weight, served locally on 4$\times$H100.
+\end{itemize}
+
+\subsection{Main results}
+
+% TODO: fill after running full benchmark
+\begin{table}[h]
+\centering\small
+\caption{CIPHER results. Best per column in \textbf{bold}.}
+\label{tab:main}
+\begin{tabular}{lrrrrrr}
+\toprule
+Model & L1 EM & L3 EM & L5 EM & EM (all) & CharF1 & PipeF1 \\
+\midrule
+OCR-only      & -- & -- & -- & -- & -- & -- \\
+Haiku         & -- & -- & -- & -- & -- & -- \\
+GPT-4o-mini   & -- & -- & -- & -- & -- & -- \\
+Gemini Flash  & -- & -- & -- & -- & -- & -- \\
+Qwen2-VL-7B   & -- & -- & -- & -- & -- & -- \\
+Qwen2-VL-72B  & -- & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Setup.} All models run with \texttt{max\_retries=3}.
+On retry 2, VLM parsing replaces regex; on retry 3, op order is reversed.
+Latency measured on a MacBook Pro M3 (OCR/API models)
+and kurkin-vllm 4$\times$H100 80GB (local models).

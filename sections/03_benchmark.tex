@@ -1,0 +1,50 @@
+\section{The CIPHER Benchmark}
+\label{sec:benchmark}
+
+\subsection{Difficulty levels}
+
+\begin{table}[h]
+\centering\small
+\caption{CIPHER difficulty levels (50 samples each, $N{=}250$ total).}
+\label{tab:levels}
+\begin{tabular}{lcccp{5cm}}
+\toprule
+Level & Key vis. & Ops & NL ambiguity & Primary challenge \\
+\midrule
+L1 & High   & 1 & Exact         & Single-op baseline \\
+L2 & Medium & 2 & Exact         & Two-op chaining \\
+L3 & Low    & 2 & Paraphrase    & Surface-form variation \\
+L4 & Low    & 3 & Reversed      & Reversed description \\
+L5 & Min.   & 4 & Compositional & Underspecified instruction \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Key visibility} varies font size (12\%$\to$5\% of frame height),
+alpha (255$\to$140), and exposure duration (4.5$\to$2.5s).
+
+\paragraph{NL ambiguity templates:}
+(1)~exact canonical; (2)~paraphrase from pool of 5 per op;
+(3)~reversed order with ``undo'' framing;
+(4)~compositional: ``The video has been edited. Undo all transformations.''
+
+\subsection{Procedural generation}
+
+Samples are fully deterministic from $(seed, level)$.
+Background clips are drawn uniformly from a Kinetics-400 pool
+(diverse human activities, minimal on-screen text).
+Test split: seeds 0--49. Challenge split: seeds 50--99.
+
+\subsection{Metrics}
+\label{sec:metrics}
+
+\paragraph{EM.} $\frac{1}{N}\sum_i \mathbf{1}[\hat{k}_i = k^*_i]$.
+
+\paragraph{CharF1.} Character-level precision/recall F1 (partial credit).
+
+\paragraph{PipeF1.}
+\begin{equation}
+\text{PipeF1} = 0.25\cdot\overline{\text{S1}} + 0.25\cdot\overline{\text{S2}} + 0.50\cdot\overline{\text{CharF1}}
+\end{equation}
+S3 receives double weight as the terminal objective;
+S1/S2 serve as diagnostic leading indicators.
