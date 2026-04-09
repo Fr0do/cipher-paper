@@ -2,20 +2,12 @@
 \label{sec:task}
 
 \paragraph{Setting.}
-An agent receives $(v, \mathcal{I})$: a short video clip $v$ (15s, 360--720p)
-and a natural-language string $\mathcal{I}$ describing a sequence of video edits.
-The agent must return $\hat{k}$ matching the ground-truth key $k^*$ embedded in $v$.
-
-\paragraph{Ground-truth construction.}
-\begin{enumerate}
-  \item Key $k^* \in \Sigma^7$ drawn from unambiguous alphanumerics
-        ($\Sigma = \text{A--Z} \cup \text{2--9} \setminus \{\text{O,0,I,1}\}$).
-  \item $k^*$ rendered as text, composited onto background for window $[t_s, t_e]$.
-  \item Op sequence $\mathbf{o}=(o_1,\ldots,o_n)$ applied to produce scrambled $v'$.
-  \item Instructions $\mathcal{I}$ generated from $\mathbf{o}$ via paraphrase template.
-\end{enumerate}
+Let $\mathcal{V}$ be the space of all video clips and $\mathcal{L}$ be the space of natural language strings. Formally, the problem is modeled as finding a function $f: \mathcal{V} \times \mathcal{L} \to \Sigma^7$ that maps a scrambled video $v'$ and a natural-language instruction $\mathcal{I}$ to a predicted alphanumeric key $\hat{k}$. The original video $v$ contains a latent key $k^* \in \Sigma^7$ embedded as text during a specific temporal window $[t_s, t_e]$. A sequence of video transformation operations $\mathbf{o} = (o_1, \dots, o_n)$ is applied to $v$ to yield the input $v' = o_n \circ \dots \circ o_1 (v)$. The optimal agent must invert this process: inferring the correct inverse operations $\mathbf{o}^{-1}$ from $\mathcal{I}$, executing them to restore $v$, and extracting $k^*$.
+The key $k^*$ is drawn from unambiguous alphanumerics ($\Sigma = \text{A--Z} \cup \text{2--9} \setminus \{\text{O,0,I,1}\}$). $\mathcal{I}$ is generated from $\mathbf{o}$ via paraphrase templates.
 
 \paragraph{Three-stage pipeline.}
+This task is naturally highly composite. An end-to-end failure (i.e., $\hat{k} \neq k^*$) could stem from a hallucinated operation, a malformed execution command, or simply failing to perceive the key against a cluttered background. By enforcing a three-stage pipeline---Instruction Parsing (S1), Execution (S2), and Key Extraction (S3)---CIPHER isolates these failure modes. It allows researchers to pinpoint whether a model's bottleneck lies in its linguistic reasoning and tool-use (S1, S2) or in its foundational spatio-temporal perception capabilities (S3), preventing monolithic metrics from masking specific architectural deficiencies.
+
 \begin{description}
   \item[S1 Parse:] $\mathcal{I} \to \hat{\mathbf{o}}$. Score: sequence-aware op F1.
   \item[S2 Execute:] run \texttt{ffmpeg}($\hat{\mathbf{o}}$). Score: binary validity.

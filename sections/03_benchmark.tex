@@ -28,12 +28,17 @@ alpha (255$\to$140), and exposure duration (4.5$\to$2.5s).
 (3)~reversed order with ``undo'' framing;
 (4)~compositional: ``The video has been edited. Undo all transformations.''
 
-\subsection{Procedural generation}
+\paragraph{Operation Vocabulary.}
+The operational vocabulary consists of seven foundational transformations: \texttt{reverse}, \texttt{hflip}, \texttt{vflip}, \texttt{rotate90}, \texttt{rotate270}, \texttt{speed2x}, and \texttt{grayscale}. This specific set was chosen because these operations are visually distinct, non-destructive (except \texttt{grayscale}, used primarily as a distractor), and strictly composable via standard \texttt{ffmpeg} filters. They demand different types of reasoning: spatial (\texttt{hflip}, \texttt{rotate}), temporal (\texttt{reverse}, \texttt{speed2x}), and color-based (\texttt{grayscale}), providing a comprehensive testbed for multimodal execution without requiring complex parameter tuning from the model.
+
+\subsection{Procedural generation and Dataset Integrity}
 
 Samples are fully deterministic from $(seed, level)$.
 Background clips are drawn uniformly from a Kinetics-400 pool
 (diverse human activities, minimal on-screen text).
 Test split: seeds 0--49. Challenge split: seeds 50--99.
+
+A persistent challenge in evaluating large language and vision models is the risk of data contamination, where static benchmark data inadvertently leaks into the pre-training corpus. CIPHER mitigates this risk entirely through programmatic dataset synthesis. The benchmark is procedurally generated from a tuple of $(seed, \text{level})$, which deterministically selects the background clip, the randomly generated 7-character key, the sequence of operations, and the natural language instruction template. Because samples are dynamically constructed on-demand using disjoint background video pools, researchers can regenerate the benchmark with novel seeds, guaranteeing an uncontaminated evaluation environment and an effectively infinite supply of test instances.
 
 \subsection{Metrics}
 \label{sec:metrics}

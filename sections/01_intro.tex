@@ -5,16 +5,12 @@ Captchas have evolved from distorted text images to dynamic, multi-step challeng
 designed to resist automation while remaining trivially solvable by humans.
 A recent class of video-editing captchas presents users with a short clip and a natural-language
 instruction such as ``reverse the video, then flip it horizontally.''
-Following these instructions reveals an embedded alphanumeric key that serves as the captcha answer.
-A human solves this in seconds; an automated agent must parse the instruction,
-execute the correct sequence of video transformations, and extract the now-visible key---
-a compound task spanning language understanding, procedural execution, and visual perception.
+Imagine a user trying to log into a secure system, only to be confronted with a 15-second chaotic video clip and the instruction: ``The video has been horizontally mirrored, then sped up 2x. Undo these transformations.'' A human with basic video editing software can quickly apply a horizontal flip and halve the playback speed, bringing a briefly flashing, faint alphanumeric key (e.g., `K9M2P') into clear, readable view. This seemingly simple test effectively filters out bots while remaining manageable for human problem-solvers.
+An automated agent must parse the instruction, execute the correct sequence of video transformations, and extract the now-visible key---a compound task spanning language understanding, procedural execution, and visual perception.
 
 Despite the proliferation of video-capable VLMs~\citep{gpt4o,gemini,qwen2vl},
 no benchmark systematically tests this compound capability.
-Existing video benchmarks target temporal reasoning~\citep{videomme,longvideobench}
-or egocentric understanding~\citep{ego4d}, not instruction-conditioned video manipulation.
-Video-editing benchmarks~\citep{vbench,editbench} evaluate generative models rather than agents.
+While current video understanding benchmarks such as Video-MME \citep{videomme} and LongVideoBench \citep{longvideobench} assess passive temporal reasoning and question answering, they do not require active, sequential manipulation of the visual stream based on language. Conversely, video generation and editing benchmarks like VBench \citep{vbench} evaluate the perceptual quality of generative models rather than the precise execution of rigid transformational rules necessary for agentic problem-solving. Neither paradigm captures the tight coupling of instruction-following, procedural tool use, and visual extraction required here.
 CIPHER fills this gap.
 
 \paragraph{Contributions.}
