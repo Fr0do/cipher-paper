@@ -7,29 +7,32 @@
 \centering\small
 \caption{CIPHER difficulty levels (50 samples each, $N{=}250$ total).}
 \label{tab:levels}
-\begin{tabular}{lcccp{5cm}}
+\begin{tabular}{lccccp{4.5cm}}
 \toprule
-Level & Key vis. & Ops & NL ambiguity & Primary challenge \\
+Level & Key vis. & Ops & NL amb. & Distr. & Primary challenge \\
 \midrule
-L1 & High   & 1 & Exact         & Single-op baseline \\
-L2 & Medium & 2 & Exact         & Two-op chaining \\
-L3 & Low    & 2 & Paraphrase    & Surface-form variation \\
-L4 & Low    & 3 & Reversed      & Reversed description \\
-L5 & Min.   & 4 & Compositional & Underspecified instruction \\
+L1 & 1 (large)  & 1 & 1 & 0 & Single-op baseline \\
+L2 & 1 (large)  & 2 & 1 & 0 & Two-op chaining \\
+L3 & 2 (medium) & 2 & 2 & 1 & Paraphrase + distractor \\
+L4 & 2 (medium) & 3 & 2 & 2 & Three-op + distractors \\
+L5 & 3 (small)  & 4 & 3 & 3 & Max complexity \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Key visibility} varies font size (12\%$\to$5\% of frame height),
-alpha (255$\to$140), and exposure duration (4.5$\to$2.5s).
+\paragraph{Key visibility} varies font size (13\%$\to$7\% of frame height),
+alpha (255$\to$200), and position randomization (centered$\to$random).
+The key is always rendered in bright yellow (RGB 255,255,0) with a black drop shadow;
+distractors use non-yellow colors (cyan, green, magenta) and are always smaller and dimmer.
 
-\paragraph{NL ambiguity templates:}
-(1)~exact canonical; (2)~paraphrase from pool of 5 per op;
-(3)~reversed order with ``undo'' framing;
-(4)~compositional: ``The video has been edited. Undo all transformations.''
+\paragraph{NL ambiguity levels:}
+(1)~exact canonical phrasing;
+(2)~paraphrase from a pool of 4--6 templates per operation;
+(3)~compositional with ``undo'' framing and embedded temporal cues.
+All phrases are designed to be parseable by regex for S1 baseline scoring.
 
 \paragraph{Operation Vocabulary.}
-The operational vocabulary consists of seven foundational transformations: \texttt{reverse}, \texttt{hflip}, \texttt{vflip}, \texttt{rotate90}, \texttt{rotate270}, \texttt{speed2x}, and \texttt{grayscale}. This specific set was chosen because these operations are visually distinct, non-destructive (except \texttt{grayscale}, used primarily as a distractor), and strictly composable via standard \texttt{ffmpeg} filters. They demand different types of reasoning: spatial (\texttt{hflip}, \texttt{rotate}), temporal (\texttt{reverse}, \texttt{speed2x}), and color-based (\texttt{grayscale}), providing a comprehensive testbed for multimodal execution without requiring complex parameter tuning from the model.
+The operational vocabulary consists of six composable transformations: \texttt{reverse}, \texttt{hflip}, \texttt{vflip}, \texttt{rotate90}, \texttt{rotate270}, and \texttt{speed2x}. These operations are visually distinct, non-destructive, and strictly composable via standard \texttt{ffmpeg} filters. They demand different types of reasoning: spatial (\texttt{hflip}, \texttt{vflip}, \texttt{rotate}), and temporal (\texttt{reverse}, \texttt{speed2x}), providing a comprehensive testbed for multimodal execution without requiring complex parameter tuning from the model.
 
 \subsection{Procedural generation and Dataset Integrity}
 
@@ -39,6 +42,33 @@ Background clips are drawn uniformly from a Kinetics-400 pool
 Test split: seeds 0--49. Challenge split: seeds 50--99.
 
 A persistent challenge in evaluating large language and vision models is the risk of data contamination, where static benchmark data inadvertently leaks into the pre-training corpus. CIPHER mitigates this risk entirely through programmatic dataset synthesis. The benchmark is procedurally generated from a tuple of $(seed, \text{level})$, which deterministically selects the background clip, the randomly generated 7-character key, the sequence of operations, and the natural language instruction template. Because samples are dynamically constructed on-demand using disjoint background video pools, researchers can regenerate the benchmark with novel seeds, guaranteeing an uncontaminated evaluation environment and an effectively infinite supply of test instances.
+
+\subsection{Difficulty Calibration via GEPA}
+\label{sec:gepa}
+
+A benchmark that saturates (100\% EM) or collapses (0\% EM) across all models conveys
+no gradient. To locate a generator configuration that produces partial credit for
+frontier VLMs, we adopt a GEPA-style \citep{gepa} reflective evolutionary loop over
+the image-mode generator. The generator is specified as an S-expression DSL over
+five tunable numerical parameters: key alpha $\alpha$, font size as a fraction of
+frame height, number and chromatic composition of distractors, Gaussian noise
+$\sigma$, and Gaussian blur radius. Each \emph{program} corresponds to a fixed
+instantiation of these parameters; \emph{fitness} is defined as
+$-|\text{EM} - 0.03| - 0.5 \cdot \text{miss rate}$, targeting a 3\% sweet spot at
+which models read but fail on individual characters.
+
+We evaluated four rounds of five programs each, with four samples per program
+(eight in the last round), using Gemini Flash as the calibration model. Round~1
+performed a wide parameter sweep; subsequent rounds progressively narrowed the
+region around the fitness peak. Round~3 produced a program
+($\alpha{=}145$, font $4.8\%$, three distractors with two yellow, noise
+$\sigma{=}4$, blur $0.25$) yielding 0\% EM with predictions of the correct
+length—a \emph{near-miss} regime where characters such as
+\texttt{Q}/\texttt{O}, \texttt{8}/\texttt{B}, \texttt{X}/\texttt{K},
+\texttt{6}/\texttt{G} are consistently confused. This regime is what we use as
+the default L3--L5 extraction condition: it is solvable but not trivial for
+Gemini-class readers, while remaining entirely uninformative (0\% EM) for non-VLM
+baselines.
 
 \subsection{Metrics}
 \label{sec:metrics}

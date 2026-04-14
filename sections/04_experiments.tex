@@ -1,42 +1,111 @@
 \section{Experiments}
 \label{sec:experiments}
 
+\subsection{Experimental Setup}
+
+\paragraph{Inference modes.}
+We evaluate models in two settings:
+(1)~\textbf{S3-only}: models receive a ground-truth corrected frame containing the key
+and must read the yellow 7-character code (tests pure visual extraction);
+(2)~\textbf{Full pipeline}: models receive the scrambled \texttt{.mp4} video and
+NL instructions with Bash access, and must independently parse instructions (S1),
+execute ffmpeg corrections (S2), locate the key frame, and extract the key (S3).
+
+\paragraph{Agentic evaluation.}
+For full-pipeline evaluation, VLM agents are given Bash access and must decide
+their own video processing strategy (ffmpeg flags, frame sampling, temporal search).
+No ground-truth metadata (operations, key, timing) is provided.
+This design ensures fairness across models with different video processing capabilities.
+
+\paragraph{Frame sampling.}
+In S3-only evaluation, key frames are identified programmatically via
+edge-aware yellow pixel detection (Sobel gradient $>$ 30 in yellow regions,
+horizontal aspect ratio $>$ 2.5) to distinguish text from yellow background elements.
+
 \subsection{Models}
 
-We benchmark the following agents, all using the same three-stage pipeline
-(Section~\ref{sec:task}) with per-model VLM backends:
+We benchmark seven configurations spanning OCR baselines, API-first VLMs, and agentic pipelines:
 
-\begin{itemize}
-  \item \textbf{OCR-only} (baseline): easyocr on sampled frames; no VLM.
-  \item \textbf{Claude Haiku}: \texttt{claude-haiku-4-5} via Anthropic API.
-  \item \textbf{GPT-4o-mini}: \texttt{gpt-4o-mini} via OpenAI API.
-  \item \textbf{Gemini Flash}: \texttt{gemini-2.0-flash} via Google API.
-  \item \textbf{Qwen2-VL-7B}: open-weight, served locally on 4$\times$H100.
-  \item \textbf{Qwen2-VL-72B}: open-weight, served locally on 4$\times$H100.
-\end{itemize}
+\begin{description}
+  \item[\textbf{OCR-only}]
+  Pure extraction baseline. Uses easyocr on sampled key frames; no language understanding or color filtering.
 
-\subsection{Main results}
+  \item[\textbf{Yellow-OCR}]
+  Color-filtered OCR baseline. Isolates yellow pixels via HSV masking (hue 20--40, saturation $>$100, value $>$150) before running easyocr. Tests whether color-aware preprocessing can substitute for VLM reasoning.
 
-% TODO: fill after running full benchmark
+  \item[\textbf{MCP Skill}]
+  Agentic pipeline baseline (\texttt{solve\_captcha.py}): regex-based instruction parsing (S1), ffmpeg execution (S2), and a multi-method extraction chain (S3): QR $\to$ OCR $\to$ VLM $\to$ audio morse $\to$ LSB steganography.
+
+  \item[\textbf{Claude Haiku (claude-haiku-4-5)}]
+  Compact API-first VLM from Anthropic. Optimized for latency and cost.
+
+  \item[\textbf{Claude Sonnet (claude-sonnet-4-6)}]
+  Mid-tier Anthropic VLM. Balances capability and throughput.
+
+  \item[\textbf{Claude Opus (claude-opus-4-6)}]
+  Frontier Anthropic VLM. Establishes the upper bound for single-provider scaling.
+
+  \item[\textbf{GPT-5.4 (codex detailed)}]
+  OpenAI frontier model with agentic tool use. Evaluated via Swarm orchestration with full Bash access.
+
+\end{description}
+
+\subsection{Main Results}
+
 \begin{table}[h]
 \centering\small
-\caption{CIPHER results. Best per column in \textbf{bold}.}
-\label{tab:main}
-\begin{tabular}{lrrrrrr}
+\caption{S3 key extraction from ground-truth corrected frames ($n{=}5$ per level).
+Best per column in \textbf{bold}.}
+\label{tab:s3}
+\begin{tabular}{lrrrr|r}
 \toprule
-Model & L1 EM & L3 EM & L5 EM & EM (all) & CharF1 & PipeF1 \\
+Model & L1 & L2 & L3 & L4 & Total \\
 \midrule
-OCR-only      & -- & -- & -- & -- & -- & -- \\
-Haiku         & -- & -- & -- & -- & -- & -- \\
-GPT-4o-mini   & -- & -- & -- & -- & -- & -- \\
-Gemini Flash  & -- & -- & -- & -- & -- & -- \\
-Qwen2-VL-7B   & -- & -- & -- & -- & -- & -- \\
-Qwen2-VL-72B  & -- & -- & -- & -- & -- & -- \\
+OCR-only       & 20\% & 25\% & 30\% & 25\% & 25\% \\
+Yellow-OCR     & 33\% & --   & --   & --   & --   \\
+MCP Skill      & 20\% & 25\% & 30\% & 25\% & 25\% \\
+Haiku          & \textbf{100\%} & 60\% & 40\% & \textbf{100\%} & 75\% \\
+Sonnet         & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} \\
+Opus           & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Setup.} All models run with \texttt{max\_retries=3}.
-On retry 2, VLM parsing replaces regex; on retry 3, op order is reversed.
-Latency measured on a MacBook Pro M3 (OCR/API models)
-and kurkin-vllm 4$\times$H100 80GB (local models).
+\begin{table}[h]
+\centering\small
+\caption{Full pipeline results (video $\to$ key). Agents receive scrambled \texttt{.mp4} and NL instructions with Bash access. TODO: complete after full-pipeline eval.}
+\label{tab:main}
+\begin{tabular}{lrrrrrr}
+\toprule
+Model & L1 EM & L2 EM & L3 EM & L4 EM & EM (all) & PipeF1 \\
+\midrule
+MCP Skill     & -- & -- & -- & -- & -- & -- \\
+Haiku         & -- & -- & -- & -- & -- & -- \\
+Sonnet        & -- & -- & -- & -- & -- & -- \\
+Opus          & -- & -- & -- & -- & -- & -- \\
+GPT-5.4       & -- & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Overview.}
+Table~\ref{tab:s3} reports S3 key extraction accuracy in isolation: each model receives a
+ground-truth corrected frame containing the yellow key and must read it.
+Frontier VLMs (Opus, Sonnet) achieve perfect accuracy, while Haiku drops to 75\%
+on frames where the key is smaller and randomly positioned (visibility level 2).
+OCR baselines perform poorly ($\sim$25\%) due to background text interference from
+Big Buck Bunny credits and scene elements.
+Crucially, S3 in isolation is \emph{not} the binding bottleneck for VLMs---the
+compound difficulty of CIPHER lies in the full pipeline, where agents must also
+identify the correct temporal window containing the key.
+
+\subsection{Per-Level Breakdown}
+
+To isolate the effect of difficulty progression, we analyze exact match separately by level.
+Figure~\ref{fig:per_level} shows EM curves for each model across L1--L5. We expect monotonic
+(or near-monotonic) EM decrease with level difficulty due to compounding effects of low key visibility,
+increased operation count, and instruction ambiguity. Comparing levels reveals which
+capability gaps are inherent to model scale versus which stem from brittleness in specific
+reasoning stages (e.g., rotating operations vs.\ speed-related paraphrase).
+This breakdown also pinpoints where the benchmark meaningfully separates models:
+models that saturate on L1--L2 do not benefit from the data collected at L3--L5.

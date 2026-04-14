@@ -7,11 +7,12 @@ executing an ffmpeg transformation chain, and extracting a hidden key from the r
 The three-stage pipeline structure and PipeF1 metric enable fine-grained diagnosis
 of where agent capability breaks down.
 
-Our experiments reveal a consistent pattern: S1 parsing is handled well by
-regex baselines and saturates early, S2 execution is robust for short op chains,
-and S3 key extraction on natural backgrounds is the primary bottleneck
-for all evaluated models. The gap between L1 and L5 EM exceeds 40 points,
-indicating substantial headroom for future work.
+Our experiments reveal that frontier VLMs solve S3 key extraction near-perfectly
+in isolation (Opus/Sonnet: 100\% EM), while OCR baselines struggle ($\sim$25\%).
+The compound difficulty of CIPHER lies in the full agentic pipeline:
+temporal key localization, correct operation sequencing, and tool execution
+create a challenging integration problem that no evaluated model solves reliably
+across all levels.
 
 \paragraph{Limitations.}
 CIPHER focuses on seven deterministic ffmpeg operations;

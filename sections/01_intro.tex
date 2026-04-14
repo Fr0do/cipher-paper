@@ -28,8 +28,9 @@ CIPHER fills this gap.
         per-stage scores ($0.25 \cdot \text{S1} + 0.25 \cdot \text{S2} + 0.50 \cdot \text{S3}$),
         alongside strict exact match (EM) and character-level F1.
 
-  \item \textbf{Baselines.} We benchmark OCR-only, Claude Haiku, GPT-4o-mini,
-        Gemini Flash, and local open-weight models (Qwen2-VL-7B/72B),
-        revealing that S1 parsing saturates quickly while S3 extraction
-        on natural backgrounds remains the binding bottleneck.
+  \item \textbf{Baselines.} We benchmark OCR-only, an agentic MCP pipeline,
+        and frontier VLMs (Claude Opus/Sonnet/Haiku, GPT-5.4),
+        revealing that S3 key extraction is near-trivial for VLMs in isolation
+        but the full agentic pipeline---parsing, execution, temporal
+        key localization---remains a challenging integration problem.
 \end{enumerate}

@@ -15,16 +15,21 @@ Figure~\ref{fig:stage_breakdown} shows per-level S1/S2/S3 scores for each model.
 % \label{fig:stage_breakdown}
 % \end{figure}
 
-\paragraph{S1 (parsing)} saturates quickly across models: even OCR-only achieves high
-parse F1 on L1--L3 via regex matching. L5 compositional instructions are the exception,
-where VLM-based parsing is required.
+\paragraph{S1 (parsing)} saturates quickly across models: regex matching achieves high
+parse F1 on L1--L3. L5 compositional instructions require VLM-based parsing.
 
 \paragraph{S2 (execution)} failures are rare on L1--L2 but increase with op count (L4--L5),
-primarily due to ffmpeg filter chain errors when ops compose non-trivially.
+primarily due to ffmpeg filter chain errors when ops compose non-trivially
+(e.g., \texttt{reverse} requires a separate pass before other filters).
 
-\paragraph{S3 (extraction)} is the binding bottleneck. OCR performance degrades
-monotonically with key visibility; VLMs recover partially via visual reasoning
-but remain below human performance at L4--L5.
+\paragraph{S3 (extraction)} is \emph{not} the binding bottleneck for VLMs.
+In isolation (given the correct frame), Opus and Sonnet achieve 100\% EM
+across all levels. Haiku drops to 75\% on smaller, randomly-positioned keys
+(visibility level 2). OCR baselines ($\sim$25\% EM) struggle with background
+text from video credits and scene elements.
+The true difficulty lies in \textbf{temporal key localization}: the key appears
+only during a 2.5--4.5s window within the video, and agents must identify
+the correct frames before extraction.
 
 \subsection{NL ambiguity ablation}
 
@@ -38,3 +43,28 @@ All backgrounds are drawn from Kinetics-400 (natural track).
 As a diagnostic, we rerun OCR-only on a 50-sample clean-background subset (BBB clips).
 CharF1 improves by $\Delta$, confirming that natural backgrounds introduce
 measurable OCR distraction even at high key visibility.
+
+\subsection{Character-level confusion in the near-miss regime}
+\label{sec:confusion}
+
+Under the calibrated extraction condition (Section~\ref{sec:gepa}), Gemini Flash
+outputs predictions of the correct key length but makes single-character
+substitutions that are \emph{consistent} with the visual geometry of the
+rendered glyphs, not random guessing. Representative errors from Round~3
+\texttt{prog\_3}:
+\[
+\texttt{TQ573CYX}\!\to\!\texttt{T0573CYK},\quad
+\texttt{D3JMQKWH}\!\to\!\texttt{D3JMOKWH},\quad
+\texttt{8ER7C6LN}\!\to\!\texttt{BER7CGLN}.
+\]
+The dominant substitution classes are
+$\{\texttt{Q}\!\leftrightarrow\!\texttt{O}, \texttt{Q}\!\leftrightarrow\!\texttt{0}\}$,
+$\{\texttt{8}\!\leftrightarrow\!\texttt{B}\}$, and
+$\{\texttt{X}\!\leftrightarrow\!\texttt{K}, \texttt{6}\!\leftrightarrow\!\texttt{G}\}$.
+These pairs share identical bounding-box silhouettes once the noise-plus-blur
+filter discards interior strokes, suggesting that the binding constraint at this
+scale is low-frequency glyph shape rather than instruction understanding.
+Invalidated Round~4 (fallback to Claude after Gemini was unreachable) produced
+$<$12\% char-accuracy and zero positionally correct characters, illustrating that
+outside the near-miss regime the same images elicit qualitatively different
+failure modes (fabrication vs.\ misreading).

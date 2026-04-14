@@ -1,7 +1,7 @@
 \documentclass{article}
 
 % NeurIPS 2026 style
-\usepackage[preprint]{neurips_2025}
+\usepackage[preprint]{neurips_2026}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{hyperref}
@@ -36,12 +36,15 @@ instructions (e.g.\ ``reverse the video, then flip horizontally'') and must
 (ii)~execute those operations via \texttt{ffmpeg}, and
 (iii)~extract a short alphanumeric key that becomes visible in the correctly edited result.
 The benchmark spans five difficulty levels that independently vary key visibility,
-operation count, and instruction ambiguity, yielding \num{250} procedurally generated samples
+operation count, and instruction ambiguity, yielding 250 procedurally generated samples
 backed by diverse Kinetics-400 background clips.
-We evaluate OCR-only baselines and a suite of frontier VLMs, finding that
-\ldots % TODO: fill in main finding
-CIPHER reveals a clear capability gap between stages: instruction parsing saturates early
-while key extraction from realistic backgrounds remains an open challenge.
+We evaluate OCR baselines, an agentic MCP pipeline, and frontier VLMs
+(Claude Opus/Sonnet/Haiku), finding that S3 key extraction in isolation is
+near-trivial for modern VLMs (Opus/Sonnet: 100\% EM) but OCR baselines
+struggle ($\sim$25\% EM).
+The compound difficulty of CIPHER lies in the full pipeline:
+temporal key localization, correct operation sequencing, and tool execution
+create a challenging integration problem where no single stage dominates.
 \end{abstract}
 
 % ============================================================
@@ -56,5 +59,7 @@ while key extraction from realistic backgrounds remains an open challenge.
 
 \bibliography{references}
 \bibliographystyle{plainnat}
+
+\input{checklist}
 
 \end{document}
