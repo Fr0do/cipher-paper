@@ -1,6 +1,11 @@
 \section{The CIPHER Benchmark}
 \label{sec:benchmark}
 
+CIPHER is designed as a benchmark for inverse procedural reasoning rather than
+as a static collection of adversarial examples. The generator exposes
+independent stress axes for policy recovery, while deterministic seeds make
+every failure replayable.
+
 \subsection{Difficulty levels}
 
 \begin{table}[h]
@@ -11,75 +16,115 @@
 \toprule
 Level & Key vis. & Ops & NL amb. & Distr. & Primary challenge \\
 \midrule
-L1 & 1 (large)  & 1 & 1 & 0 & Single-op baseline \\
-L2 & 1 (large)  & 2 & 1 & 0 & Two-op chaining \\
-L3 & 2 (medium) & 2 & 2 & 1 & Paraphrase + distractor \\
-L4 & 2 (medium) & 3 & 2 & 2 & Three-op + distractors \\
-L5 & 3 (small)  & 4 & 3 & 3 & Max complexity \\
+L1 & 1 (large)  & 1 & 1 & 0 & Single-op sanity check \\
+L2 & 1 (large)  & 2 & 1 & 0 & Two-op program recovery \\
+L3 & 2 (medium) & 2 & 2 & 1 & Paraphrase + distractor pressure \\
+L4 & 2 (medium) & 3 & 2 & 2 & Longer chain + distractors \\
+L5 & 3 (small)  & 4 & 3 & 3 & Compositional full difficulty \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Key visibility} varies font size (13\%$\to$7\% of frame height),
-alpha (255$\to$200), and position randomization (centered$\to$random).
-The key is always rendered in bright yellow (RGB 255,255,0) with a black drop shadow;
-distractors use non-yellow colors (cyan, green, magenta) and are always smaller and dimmer.
+\paragraph{Key visibility}
+varies font size (13\%$\to$7\% of frame height), alpha (255$\to$200), and
+position randomization (centered$\to$random). The key is always rendered in
+bright yellow with a black drop shadow; distractors use non-yellow colors and
+are always smaller and dimmer.
 
-\paragraph{NL ambiguity levels:}
-(1)~exact canonical phrasing;
-(2)~paraphrase from a pool of 4--6 templates per operation;
-(3)~compositional with ``undo'' framing and embedded temporal cues.
-All phrases are designed to be parseable by regex for S1 baseline scoring.
+\paragraph{Capability axes.}
+The benchmark factors difficulty into independent axes that correspond to
+distinct stresses on the recovery policy: key visibility controls terminal
+extraction difficulty; operation count controls latent-program length;
+instruction ambiguity controls inference difficulty; and distractor density
+controls false terminal-state attraction. This design supports attribution of
+performance drops to specific parts of the policy rather than to a single
+undifferentiated ``harder'' setting.
 
-\paragraph{Operation Vocabulary.}
-The operational vocabulary consists of six composable transformations: \texttt{reverse}, \texttt{hflip}, \texttt{vflip}, \texttt{rotate90}, \texttt{rotate270}, and \texttt{speed2x}. These operations are visually distinct, non-destructive, and strictly composable via standard \texttt{ffmpeg} filters. They demand different types of reasoning: spatial (\texttt{hflip}, \texttt{vflip}, \texttt{rotate}), and temporal (\texttt{reverse}, \texttt{speed2x}), providing a comprehensive testbed for multimodal execution without requiring complex parameter tuning from the model.
+\paragraph{NL ambiguity levels.}
+(1) exact canonical phrasing; (2) paraphrase from a pool of templates per
+operation; (3) compositional ``undo'' framing with embedded temporal cues. All
+phrases are intentionally designed to remain scoreable for S1 baselines.
 
-\subsection{Procedural generation and Dataset Integrity}
+\paragraph{Operation vocabulary.}
+The operational vocabulary consists of six composable transformations:
+\texttt{reverse}, \texttt{hflip}, \texttt{vflip}, \texttt{rotate90},
+\texttt{rotate270}, and \texttt{speed2x}. These operations are visually
+distinct, non-destructive, and composable via standard \texttt{ffmpeg}
+filters. The vocabulary is intentionally small to preserve interpretability.
 
-Samples are fully deterministic from $(seed, level)$.
-Background clips are drawn uniformly from a Kinetics-400 pool
-(diverse human activities, minimal on-screen text).
-Test split: seeds 0--49. Challenge split: seeds 50--99.
+\subsection{Procedural generation and dataset integrity}
 
-A persistent challenge in evaluating large language and vision models is the risk of data contamination, where static benchmark data inadvertently leaks into the pre-training corpus. CIPHER mitigates this risk entirely through programmatic dataset synthesis. The benchmark is procedurally generated from a tuple of $(seed, \text{level})$, which deterministically selects the background clip, the randomly generated 7-character key, the sequence of operations, and the natural language instruction template. Because samples are dynamically constructed on-demand using disjoint background video pools, researchers can regenerate the benchmark with novel seeds, guaranteeing an uncontaminated evaluation environment and an effectively infinite supply of test instances.
+Samples are fully deterministic from $(seed, level)$. Background clips are
+drawn from a Kinetics-400 pool, and the manifest stores the generated sample
+metadata explicitly.
 
-\subsection{Difficulty Calibration via GEPA}
+A persistent challenge in evaluating large language and vision models is the
+risk of data contamination, where static benchmark data leaks into the
+pre-training corpus. CIPHER mitigates this through programmatic dataset
+synthesis. The benchmark is generated from $(seed, \text{level})$, which
+deterministically selects the background clip, random key, operator chain, and
+instruction template. Because samples are constructed on demand using disjoint
+background pools, researchers can regenerate the benchmark with novel seeds,
+guaranteeing an uncontaminated evaluation environment and a renewable supply of
+test instances. The same mechanism also makes failures replayable: a single
+seed is sufficient to reconstruct the exact corrupted observation, latent
+program, and target timing window for regression-driven debugging.
+
+\subsection{Difficulty calibration via GEPA}
 \label{sec:gepa}
 
-A benchmark that saturates (100\% EM) or collapses (0\% EM) across all models conveys
-no gradient. To locate a generator configuration that produces partial credit for
-frontier VLMs, we adopt a GEPA-style \citep{gepa} reflective evolutionary loop over
-the image-mode generator. The generator is specified as an S-expression DSL over
-five tunable numerical parameters: key alpha $\alpha$, font size as a fraction of
-frame height, number and chromatic composition of distractors, Gaussian noise
-$\sigma$, and Gaussian blur radius. Each \emph{program} corresponds to a fixed
-instantiation of these parameters; \emph{fitness} is defined as
-$-|\text{EM} - 0.03| - 0.5 \cdot \text{miss rate}$, targeting a 3\% sweet spot at
-which models read but fail on individual characters.
+A benchmark that either saturates (all models at 100\% EM) or collapses (all
+at 0\% EM) provides little discriminative signal. Rather than targeting a
+single operating point, we calibrate a ladder of five extraction conditions,
+L1--L5, such that a reference frontier VLM spans the full accuracy range from
+near-ceiling to near-floor. This design supports informative scaling curves and
+helps preserve discriminative power as models improve.
 
-We evaluated four rounds of five programs each, with four samples per program
-(eight in the last round), using Gemini Flash as the calibration model. Round~1
-performed a wide parameter sweep; subsequent rounds progressively narrowed the
-region around the fitness peak. Round~3 produced a program
-($\alpha{=}145$, font $4.8\%$, three distractors with two yellow, noise
-$\sigma{=}4$, blur $0.25$) yielding 0\% EM with predictions of the correct
-length—a \emph{near-miss} regime where characters such as
-\texttt{Q}/\texttt{O}, \texttt{8}/\texttt{B}, \texttt{X}/\texttt{K},
-\texttt{6}/\texttt{G} are consistently confused. This regime is what we use as
-the default L3--L5 extraction condition: it is solvable but not trivial for
-Gemini-class readers, while remaining entirely uninformative (0\% EM) for non-VLM
-baselines.
+To find the five conditions we adopt a GEPA-style \citep{gepa} reflective
+evolutionary loop over the image-mode generator. This search calibrates
+\emph{benchmark difficulty}, not model weights. The generator is an
+S-expression DSL with tunable numerical parameters including key alpha, font
+size, distractor count and color, Gaussian noise, and blur radius. Each
+\emph{program} is a fixed instantiation; \emph{fitness} is the squared error
+between observed EM and a per-level target profile.
+
+We intentionally run this search first in image mode rather than in the full
+video pipeline. Direct video-level calibration mixes extraction difficulty with
+pipeline noise from parsing, tool execution, and temporal localization. Image
+mode yields a cleaner fitness signal for terminal-state readability, after
+which the resulting ladder can be transferred into the full procedural
+benchmark.
+
+\begin{table}[h]
+\centering\small
+\caption{Calibrated extraction levels, measured on Claude Sonnet 4.6
+(reference model during calibration, $n{=}8$--16 per level).}
+\label{tab:ladder}
+\begin{tabular}{llrrr}
+\toprule
+Level & Config ($\alpha$, font\%, dist, $\sigma$, blur) & target EM & obs.\ EM & char-acc \\
+\midrule
+L1 & $255$, $12\%$, $0$, $0$, $0$                & $95\%$ & $62\%$ & $94\%$ \\
+L2 & $240$, $10.5\%$, $0$, $0$, $0$              & $70\%$ & $69\%$ & $94\%$ \\
+L3 & $225$, $9\%$, $0$, $0$, $0$                 & $40\%$ & $44\%$ & $92\%$ \\
+L4 & $215$, $8\%$, $1$c, $0$, $0$                & $15\%$ & $25\%$ & $82\%$ \\
+L5 & $205$, $7.5\%$, $1$\,(1y), $0.5$, $0$       & $3\%$  & $0\%$  & $55\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Metrics}
 \label{sec:metrics}
 
-\paragraph{EM.} $\frac{1}{N}\sum_i \mathbf{1}[\hat{k}_i = k^*_i]$.
+\paragraph{EM.}
+$\frac{1}{N}\sum_i \mathbf{1}[\hat{k}_i = k^*_i]$.
 
-\paragraph{CharF1.} Character-level precision/recall F1 (partial credit).
+\paragraph{CharF1.}
+Character-level precision/recall F1 for near-miss credit.
 
 \paragraph{PipeF1.}
 \begin{equation}
 \text{PipeF1} = 0.25\cdot\overline{\text{S1}} + 0.25\cdot\overline{\text{S2}} + 0.50\cdot\overline{\text{CharF1}}
 \end{equation}
-S3 receives double weight as the terminal objective;
-S1/S2 serve as diagnostic leading indicators.
+S3 receives double weight as the terminal objective; S1 and S2 are diagnostic
+leading indicators for policy failure attribution.
