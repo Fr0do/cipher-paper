@@ -2,11 +2,31 @@
 \label{sec:task}
 
 \paragraph{Setting.}
-Let $\mathcal{V}$ be the space of all video clips and $\mathcal{L}$ be the space of natural language strings. Formally, the problem is modeled as finding a function $f: \mathcal{V} \times \mathcal{L} \to \Sigma^7$ that maps a scrambled video $v'$ and a natural-language instruction $\mathcal{I}$ to a predicted alphanumeric key $\hat{k}$. The original video $v$ contains a latent key $k^* \in \Sigma^7$ embedded as text during a specific temporal window $[t_s, t_e]$. A sequence of video transformation operations $\mathbf{o} = (o_1, \dots, o_n)$ is applied to $v$ to yield the input $v' = o_n \circ \dots \circ o_1 (v)$. The optimal agent must invert this process: inferring the correct inverse operations $\mathbf{o}^{-1}$ from $\mathcal{I}$, executing them to restore $v$, and extracting $k^*$.
-The key $k^*$ is drawn from unambiguous alphanumerics ($\Sigma = \text{A--Z} \cup \text{2--9} \setminus \{\text{O,0,I,1}\}$). $\mathcal{I}$ is generated from $\mathbf{o}$ via paraphrase templates.
+Let $\mathcal{V}$ be the space of video clips and $\mathcal{L}$ the space of
+natural-language strings. CIPHER evaluates a function
+$f: \mathcal{V} \times \mathcal{L} \to \Sigma^7$ that maps a corrupted video
+$v'$ and an instruction $\mathcal{I}$ to a predicted target string $\hat{k}$.
+The original clip $v$ contains a latent key $k^* \in \Sigma^7$ embedded during
+a temporal window $[t_s, t_e]$. A sequence of transformation operations
+$\mathbf{o} = (o_1, \dots, o_n)$ is applied to $v$ to yield
+$v' = o_n \circ \dots \circ o_1 (v)$. The agent's objective is to recover the
+inverse program $\mathbf{o}^{-1}$ from $\mathcal{I}$ and $v'$, execute it, and
+extract $k^*$ from the recovered terminal state.
+
+The key $k^*$ is drawn from unambiguous alphanumerics
+($\Sigma = \text{A--Z} \cup \text{2--9} \setminus \{\text{O,0,I,1}\}$).
+Instructions are generated from $\mathbf{o}$ via paraphrase templates.
 
 \paragraph{Three-stage pipeline.}
-This task is naturally highly composite. An end-to-end failure (i.e., $\hat{k} \neq k^*$) could stem from a hallucinated operation, a malformed execution command, or simply failing to perceive the key against a cluttered background. By enforcing a three-stage pipeline---Instruction Parsing (S1), Execution (S2), and Key Extraction (S3)---CIPHER isolates these failure modes. It allows researchers to pinpoint whether a model's bottleneck lies in its linguistic reasoning and tool-use (S1, S2) or in its foundational spatio-temporal perception capabilities (S3), preventing monolithic metrics from masking specific architectural deficiencies.
+This task is intentionally composite. An end-to-end failure
+($\hat{k} \neq k^*$) may arise because the model inferred the wrong program,
+realized the wrong tool chain, or failed to localize and read the key after
+successful recovery. By enforcing a three-stage pipeline---Instruction Parsing
+(S1), Execution (S2), and Key Extraction (S3)---CIPHER isolates these failure
+modes. In policy terms, S1 corresponds to \emph{program inference}, S2 to
+\emph{tool-chain realization}, and S3 to \emph{terminal-state extraction}.
+This decomposition prevents monolithic metrics from masking which part of the
+reasoning policy is actually failing.
 
 \begin{description}
   \item[S1 Parse:] $\mathcal{I} \to \hat{\mathbf{o}}$. Score: sequence-aware op F1.
@@ -15,5 +35,31 @@ This task is naturally highly composite. An end-to-end failure (i.e., $\hat{k} \
 \end{description}
 
 \paragraph{Operations.}
-Six composable ffmpeg ops: \texttt{reverse}, \texttt{hflip}, \texttt{vflip},
-\texttt{rotate90}, \texttt{rotate270}, \texttt{speed2x}.
+The operation vocabulary is intentionally minimal: six composable
+\texttt{ffmpeg} transforms, \texttt{reverse}, \texttt{hflip},
+\texttt{vflip}, \texttt{rotate90}, \texttt{rotate270}, and
+\texttt{speed2x}. These are reversible, visually interpretable, and cover both
+spatial and temporal recovery. The restricted vocabulary is a design choice:
+it keeps the benchmark focused on inverse program recovery rather than on open
+ended action-space exploration.
+
+\paragraph{Video-temporal diagnostic domain.}
+In addition to the original inverse-\texttt{ffmpeg} pipeline, we instantiate a
+controlled video-temporal split-key domain for faster iteration on temporal
+aggregation. A key is split into two fragments that appear on two consecutive
+frames of a short clip sampled from the public DAVIS-2017 video corpus
+\citep{davis2017}. The solver must identify the target frames, read both
+fragments, and invert a small symbolic operation before answering. The
+operation set is \texttt{none}, \texttt{swap\_fragments},
+\texttt{reverse\_chars}, and \texttt{swap\_reverse\_chars}; the last two
+require character-level transformation rather than simple OCR.
+
+This domain deliberately separates \emph{temporal evidence acquisition} from
+generic video editing: the latent program, target frame indices, fragment
+bounding boxes, displayed fragments, normalized fragments, and final answer are
+all known from generation. This enables dense process scoring. Besides strict
+EM, we assign partial credit for operation recognition, target-frame
+localization, displayed-fragment similarity, normalized-answer similarity,
+transform-derived answer similarity, final-answer similarity, and successful
+tool use. The resulting traces are used both for model diagnosis and for
+evolutionary seed selection.

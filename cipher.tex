@@ -15,7 +15,7 @@
 \usepackage{multirow}
 \usepackage{subcaption}
 
-\title{CIPHER: A Benchmark for Captcha Instruction Parsing with Hidden Extraction and Reasoning}
+\title{CIPHER: A Benchmark for Inverse Transformation Program Recovery in Multimodal Agents}
 
 \author{%
   Maxim Kurkin \\
@@ -27,24 +27,31 @@
 
 % ============================================================
 \begin{abstract}
-We introduce \textbf{CIPHER} (\textbf{C}aptcha \textbf{I}nstruction \textbf{P}arsing with
-\textbf{H}idden \textbf{E}xtraction and \textbf{R}easoning), a procedurally generated benchmark
-for evaluating vision-language models (VLMs) on video-editing captcha tasks.
-In CIPHER, an agent receives a short video clip together with natural-language editing
-instructions (e.g.\ ``reverse the video, then flip horizontally'') and must
-(i)~parse the instructions into a sequence of edit operations,
-(ii)~execute those operations via \texttt{ffmpeg}, and
-(iii)~extract a short alphanumeric key that becomes visible in the correctly edited result.
-The benchmark spans five difficulty levels that independently vary key visibility,
-operation count, and instruction ambiguity, yielding 250 procedurally generated samples
-backed by diverse Kinetics-400 background clips.
-We evaluate OCR baselines, an agentic MCP pipeline, and frontier VLMs
-(Claude Opus/Sonnet/Haiku), finding that S3 key extraction in isolation is
-near-trivial for modern VLMs (Opus/Sonnet: 100\% EM) but OCR baselines
-struggle ($\sim$25\% EM).
-The compound difficulty of CIPHER lies in the full pipeline:
-temporal key localization, correct operation sequencing, and tool execution
-create a challenging integration problem where no single stage dominates.
+We introduce \textbf{CIPHER}, a procedurally generated benchmark for
+\emph{inverse transformation program recovery} in tool-using multimodal
+systems. In CIPHER, a model receives a corrupted video observation together
+with natural-language instructions describing the transformations required to
+restore it. The system must (i) infer the latent transformation program,
+(ii) realize the inverse tool chain via \texttt{ffmpeg}, and
+(iii) localize and extract a short target string that is readable only after
+successful recovery. This yields a stage-decomposed evaluation of
+\textbf{program inference} (S1), \textbf{tool-chain execution} (S2), and
+\textbf{terminal-state extraction} (S3), rather than a single monolithic score.
+
+CIPHER spans five calibrated difficulty levels that vary key visibility,
+transformation-chain length, instruction ambiguity, and distractor density,
+with deterministic seed-based replay and procedural regeneration for
+contamination resistance and reproducible regression testing.
+We also instantiate a DAVIS-2017 video-temporal split-key domain that measures
+multi-frame aggregation and operation inversion with dense process partial
+credit.
+We evaluate OCR baselines, heuristic pipelines, and frontier multimodal models.
+Current systems are strong in S3-only extraction when given the correct
+terminal frame, but remain fragile in end-to-end recovery where temporal
+localization, transformation sequencing, and executable tool use must all be
+correct simultaneously. CIPHER is therefore best viewed as a diagnostic
+benchmark for inverse procedural reasoning in multimodal agents, not merely as
+another passive video-understanding leaderboard.
 \end{abstract}
 
 % ============================================================

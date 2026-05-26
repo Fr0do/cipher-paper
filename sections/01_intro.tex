@@ -1,36 +1,69 @@
 \section{Introduction}
 \label{sec:intro}
 
-Captchas have evolved from distorted text images to dynamic, multi-step challenges
-designed to resist automation while remaining trivially solvable by humans.
-A recent class of video-editing captchas presents users with a short clip and a natural-language
-instruction such as ``reverse the video, then flip it horizontally.''
-Imagine a user trying to log into a secure system, only to be confronted with a 15-second chaotic video clip and the instruction: ``The video has been horizontally mirrored, then sped up 2x. Undo these transformations.'' A human with basic video editing software can quickly apply a horizontal flip and halve the playback speed, bringing a briefly flashing, faint alphanumeric key (e.g., `K9M2P') into clear, readable view. This seemingly simple test effectively filters out bots while remaining manageable for human problem-solvers.
-An automated agent must parse the instruction, execute the correct sequence of video transformations, and extract the now-visible key---a compound task spanning language understanding, procedural execution, and visual perception.
+Recent multimodal models are increasingly strong at passive video
+understanding: they can answer questions about actions, summarize clips, and
+describe temporal events with surprising fluency. But many agentic failures do
+not occur at the level of recognizing what is in a video; they occur at the
+transition from \emph{understanding} to \emph{executable recovery}. A system
+may understand that a video has been mirrored, reversed, or sped up, yet still
+fail to realize the correct inverse tool chain, search the right temporal
+window, or extract the target signal from the restored result.
+
+CIPHER targets exactly this gap. It instantiates a narrow but revealing
+setting: given a corrupted video observation and natural-language
+instructions, a system must infer, invert, and execute a latent transformation
+program, then localize and extract the target signal. The surface form
+resembles a video-editing challenge, but the underlying capability is
+\emph{inverse multimodal procedural reasoning} under tool use.
 
 Despite the proliferation of video-capable VLMs~\citep{gpt4o,gemini,qwen2vl},
-no benchmark systematically tests this compound capability.
-While current video understanding benchmarks such as Video-MME \citep{videomme} and LongVideoBench \citep{longvideobench} assess passive temporal reasoning and question answering, they do not require active, sequential manipulation of the visual stream based on language. Conversely, video generation and editing benchmarks like VBench \citep{vbench} evaluate the perceptual quality of generative models rather than the precise execution of rigid transformational rules necessary for agentic problem-solving. Neither paradigm captures the tight coupling of instruction-following, procedural tool use, and visual extraction required here.
-CIPHER fills this gap.
+no benchmark systematically tests this compound capability. While current video
+understanding benchmarks such as Video-MME~\citep{videomme} and
+LongVideoBench~\citep{longvideobench} assess passive temporal reasoning and
+question answering, they do not require active, sequential manipulation of the
+visual stream based on language. Conversely, video generation and editing
+benchmarks like VBench~\citep{vbench} evaluate perceptual quality rather than
+the precise execution of rigid transformational rules. Neither paradigm
+captures the tight coupling of instruction-following, procedural tool use, and
+visual extraction required here.
+
+Two design choices make CIPHER deliberately interpretable. First, the
+transformation vocabulary is intentionally minimal and reversible:
+\texttt{reverse}, \texttt{hflip}, \texttt{vflip}, \texttt{rotate90},
+\texttt{rotate270}, and \texttt{speed2x}. This keeps failures attributable to
+reasoning and execution rather than to an uncontrolled action space. Second,
+evaluation is stage-decomposed into program inference (S1), tool-chain
+execution (S2), and terminal-state extraction (S3), making it possible to ask
+\emph{where} a system fails rather than merely whether the final string is
+correct.
 
 \paragraph{Contributions.}
 \begin{enumerate}
-  \item \textbf{Task formulation.} We define the video-editing captcha solving task
-        as a three-stage pipeline: instruction parsing (S1), ffmpeg execution (S2),
-        and key extraction (S3), enabling fine-grained per-stage diagnostics.
+  \item \textbf{Benchmark for inverse transformation program recovery.}
+        We formulate a multimodal task in which the model must recover a latent
+        transformation program from corrupted video observations and
+        natural-language instructions, then execute the inverse chain and
+        extract the target signal.
 
-  \item \textbf{Benchmark.} CIPHER provides 250 procedurally generated samples
-        across five difficulty levels (L1--L5), varying key visibility,
-        operation count (1--4 ops), and instruction ambiguity (exact to compositional).
-        Backgrounds are drawn from Kinetics-400 to ensure visual diversity.
+  \item \textbf{Stage-decomposed evaluation.}
+        We decompose the task into program inference (S1), tool-chain
+        execution (S2), and terminal-state extraction (S3), allowing
+        pipeline-stage attribution instead of a single opaque end-to-end score.
 
-  \item \textbf{Metrics.} We propose \emph{Pipeline-F1}, a weighted combination of
-        per-stage scores ($0.25 \cdot \text{S1} + 0.25 \cdot \text{S2} + 0.50 \cdot \text{S3}$),
-        alongside strict exact match (EM) and character-level F1.
+  \item \textbf{Procedural benchmark infrastructure.}
+        CIPHER provides deterministic seed-based generation, contamination
+        resistance, replayable regression cases, and a calibrated difficulty
+        ladder over visibility, chain length, instruction ambiguity, and
+        distractor density. We additionally introduce a video-temporal
+        split-key domain over DAVIS-2017 clips for fast iteration on temporal
+        aggregation and operation inversion.
 
-  \item \textbf{Baselines.} We benchmark OCR-only, an agentic MCP pipeline,
-        and frontier VLMs (Claude Opus/Sonnet/Haiku, GPT-5.4),
-        revealing that S3 key extraction is near-trivial for VLMs in isolation
-        but the full agentic pipeline---parsing, execution, temporal
-        key localization---remains a challenging integration problem.
+  \item \textbf{Evidence of an execution gap.}
+        Across OCR baselines, heuristic pipelines, and frontier multimodal
+        models, strong S3-only extraction does not translate into reliable
+        recovery. The current video-temporal slice further shows that many
+        failed answers contain meaningful partial progress, exposing a gap
+        between perception, temporal evidence selection, and executable policy
+        competence.
 \end{enumerate}

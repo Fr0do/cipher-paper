@@ -1,70 +1,93 @@
 \section{Analysis}
 \label{sec:analysis}
 
-% TODO: fill after results. Placeholder structure below.
+CIPHER is most valuable when failures are treated as structured signals rather
+than as a flat collection of incorrect strings. The analysis should therefore
+be read as a \emph{failure geometry}: which stage breaks first, how errors
+change with difficulty, and which seeds should be preserved as regression
+cases. Some subsections below remain partially prospective pending
+full-pipeline results, but the intended analytical frame is already clear.
 
 \subsection{Stage bottleneck analysis}
 
-We decompose failures by stage to identify where the pipeline breaks down.
-Figure~\ref{fig:stage_breakdown} shows per-level S1/S2/S3 scores for each model.
+We decompose failures by stage to identify where the recovery policy breaks
+down.
 
-% \begin{figure}[h]
-% \centering
-% \includegraphics[width=\linewidth]{figures/stage_breakdown.pdf}
-% \caption{Stage scores by level and model.}
-% \label{fig:stage_breakdown}
-% \end{figure}
+\paragraph{S1 (program inference).}
+On simple levels, S1 often saturates first: regex matching achieves high parse
+F1 on canonical instructions. The remaining errors are not random; they
+concentrate in paraphrastic or compositional instructions where the system must
+recover the latent operator sequence rather than match surface forms.
 
-\paragraph{S1 (parsing)} saturates quickly across models: regex matching achieves high
-parse F1 on L1--L3. L5 compositional instructions require VLM-based parsing.
+\paragraph{S2 (tool-chain execution).}
+Execution failures are rare on short chains but increase with operation count,
+primarily because the model must realize a valid \texttt{ffmpeg} chain rather
+than merely name the right operations.
 
-\paragraph{S2 (execution)} failures are rare on L1--L2 but increase with op count (L4--L5),
-primarily due to ffmpeg filter chain errors when ops compose non-trivially
-(e.g., \texttt{reverse} requires a separate pass before other filters).
+\paragraph{S3 (terminal-state extraction).}
+S3 is \emph{not} the binding bottleneck for frontier VLMs once the correct
+frame is provided. The true difficulty lies in the coupling between temporal
+localization and execution: many systems that can read the key still fail to
+arrive at the correct frame.
 
-\paragraph{S3 (extraction)} is \emph{not} the binding bottleneck for VLMs.
-In isolation (given the correct frame), Opus and Sonnet achieve 100\% EM
-across all levels. Haiku drops to 75\% on smaller, randomly-positioned keys
-(visibility level 2). OCR baselines ($\sim$25\% EM) struggle with background
-text from video credits and scene elements.
-The true difficulty lies in \textbf{temporal key localization}: the key appears
-only during a 2.5--4.5s window within the video, and agents must identify
-the correct frames before extraction.
-
-\subsection{NL ambiguity ablation}
-
-Holding key visibility and op count fixed (L2 vs.\ L3), we isolate the effect of
-instruction paraphrase. Parse F1 drops by $\Delta$ on paraphrase vs.\ exact phrasing,
-with most errors on speed and rotation ops where synonym coverage is lowest.
-
-\subsection{Background influence}
-
-All backgrounds are drawn from Kinetics-400 (natural track).
-As a diagnostic, we rerun OCR-only on a 50-sample clean-background subset (BBB clips).
-CharF1 improves by $\Delta$, confirming that natural backgrounds introduce
-measurable OCR distraction even at high key visibility.
+\paragraph{Near-miss errors are informative.}
+Near-miss predictions should not be discarded as noise. They reveal whether a
+model reached the correct terminal state but misread one character, localized
+the wrong frame, or recovered the wrong but visually plausible distractor. In a
+diagnostic benchmark, these distinctions matter more than a single binary EM
+label.
 
 \subsection{Character-level confusion in the near-miss regime}
-\label{sec:confusion}
 
-Under the calibrated extraction condition (Section~\ref{sec:gepa}), Gemini Flash
-outputs predictions of the correct key length but makes single-character
-substitutions that are \emph{consistent} with the visual geometry of the
-rendered glyphs, not random guessing. Representative errors from Round~3
-\texttt{prog\_3}:
-\[
-\texttt{TQ573CYX}\!\to\!\texttt{T0573CYK},\quad
-\texttt{D3JMQKWH}\!\to\!\texttt{D3JMOKWH},\quad
-\texttt{8ER7C6LN}\!\to\!\texttt{BER7CGLN}.
-\]
-The dominant substitution classes are
-$\{\texttt{Q}\!\leftrightarrow\!\texttt{O}, \texttt{Q}\!\leftrightarrow\!\texttt{0}\}$,
-$\{\texttt{8}\!\leftrightarrow\!\texttt{B}\}$, and
-$\{\texttt{X}\!\leftrightarrow\!\texttt{K}, \texttt{6}\!\leftrightarrow\!\texttt{G}\}$.
-These pairs share identical bounding-box silhouettes once the noise-plus-blur
-filter discards interior strokes, suggesting that the binding constraint at this
-scale is low-frequency glyph shape rather than instruction understanding.
-Invalidated Round~4 (fallback to Claude after Gemini was unreachable) produced
-$<$12\% char-accuracy and zero positionally correct characters, illustrating that
-outside the near-miss regime the same images elicit qualitatively different
-failure modes (fabrication vs.\ misreading).
+Under calibrated extraction settings, models produce consistent substitutions
+among visually similar glyphs rather than random strings. These errors are
+useful because they identify a readable-but-fragile regime in which the task is
+still discriminative.
+
+\subsection{Video-temporal failure taxonomy}
+
+The DAVIS video-temporal slice makes the failure geometry concrete. Among the
+78 modern video-temporal tasks, 67 currently have no exact match from any
+evaluated backend, but only one task is an all-missing failure across all
+models. This is the desired hard-but-diagnostic regime: most failures still
+contain usable intermediate evidence.
+
+The dominant failure families are:
+\begin{itemize}
+  \item \textbf{near misses}: 21 tasks have no EM but reach maximum process
+        partial credit at least 0.5, indicating that a model recovered part of
+        the operation/frame/fragment structure but failed the final string;
+  \item \textbf{frame-localization weakness}: 24 tasks have maximum
+        frame-localization credit below 0.5, showing that models often read
+        from non-target frames or from the entire clip rather than the two
+        target frames;
+  \item \textbf{over-reading}: 12 tasks contain predictions longer than the
+        gold key by more than two characters, usually because the model absorbs
+        distractors or neighboring yellow text into the answer; and
+  \item \textbf{hard swap-and-reverse cases}: the highest-difficulty frontier
+        is dominated by \texttt{swap\_reverse\_chars} seeds with 7--8 frames,
+        high jitter, distractors, and non-central placement.
+\end{itemize}
+
+This taxonomy directly motivates the dense metric. A flat EM score would mark
+all of these examples as identical failures. Process partial credit separates
+``no evidence'', ``found the operation'', ``localized the wrong frame'', and
+``read the right evidence but transformed it incorrectly'', which are different
+failure modes for an agentic multimodal system.
+
+\subsection{Canonical failure suite}
+
+For benchmark-driven development, we recommend preserving a curated suite of
+20--50 canonical failure seeds with associated traces. Each entry should store:
+seed, level, background regime, gold operator chain, predicted operator chain,
+execution trace, temporal localization decision, predicted key, and error
+family. This turns CIPHER from a static benchmark into a replayable regression
+environment for agentic systems.
+
+The current video-temporal seedbank is the first implementation of this idea.
+It stores not only the winning candidates, but also diverse non-winning
+candidates selected by a utilization--diversity criterion. This matters because
+the most useful benchmark samples are not always the hardest candidates by EM:
+some are slightly easier but much more interpretable, and some expose specific
+operation or temporal-localization weaknesses that would be lost if we kept
+only the scalar best-of-run candidate.

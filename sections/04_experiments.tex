@@ -1,61 +1,77 @@
 \section{Experiments}
 \label{sec:experiments}
 
-\subsection{Experimental Setup}
+\subsection{Experimental setup}
 
 \paragraph{Inference modes.}
 We evaluate models in two settings:
-(1)~\textbf{S3-only}: models receive a ground-truth corrected frame containing the key
-and must read the yellow 7-character code (tests pure visual extraction);
-(2)~\textbf{Full pipeline}: models receive the scrambled \texttt{.mp4} video and
-NL instructions with Bash access, and must independently parse instructions (S1),
-execute ffmpeg corrections (S2), locate the key frame, and extract the key (S3).
+(1)~\textbf{S3-only}: models receive a ground-truth corrected frame containing
+the key and must read it. This tests pure terminal-state extraction and serves
+as an upper-bound control slice.
+(2)~\textbf{Full pipeline}: models receive the scrambled \texttt{.mp4} video
+and natural-language instructions with Bash access, and must independently
+parse instructions (S1), execute \texttt{ffmpeg} corrections (S2), locate the
+key window, and extract the key (S3).
+
+The distinction is central: strong performance in S3-only does not imply strong
+inverse program recovery. It only shows that once the correct terminal state is
+provided, the model can decode the target string. Full-pipeline performance
+measures whether the system can actually reach that terminal state.
 
 \paragraph{Agentic evaluation.}
 For full-pipeline evaluation, VLM agents are given Bash access and must decide
-their own video processing strategy (ffmpeg flags, frame sampling, temporal search).
-No ground-truth metadata (operations, key, timing) is provided.
-This design ensures fairness across models with different video processing capabilities.
+their own video processing strategy (ffmpeg flags, frame sampling, temporal
+search). No ground-truth metadata (operations, key, timing) is provided.
 
-\paragraph{Frame sampling.}
-In S3-only evaluation, key frames are identified programmatically via
-edge-aware yellow pixel detection (Sobel gradient $>$ 30 in yellow regions,
-horizontal aspect ratio $>$ 2.5) to distinguish text from yellow background elements.
+\paragraph{Reported metrics.}
+We report strict exact match (EM), character-level F1, stage-specific
+S1 parse F1, S2 execution success rate, and Pipeline-F1. In the current draft,
+the strongest supported evidence comes from S3-only and calibrated extraction
+experiments; full-pipeline reporting remains incomplete and is therefore
+presented as an explicit gap rather than as a filled leaderboard.
+
+For the video-temporal diagnostic domain, we additionally report \emph{process
+partial credit}. This score decomposes a failed answer into operation credit,
+frame-localization credit, displayed-fragment similarity, normalized-answer
+similarity, transform-derived-answer similarity, final-answer similarity, and
+tool-use credit. It is intentionally not a replacement for EM; it is a dense
+diagnostic signal used to distinguish uninformative failures from meaningful
+near misses.
 
 \subsection{Models}
 
-We benchmark seven configurations spanning OCR baselines, API-first VLMs, and agentic pipelines:
+We benchmark OCR baselines, heuristic pipelines, and frontier multimodal
+systems:
 
 \begin{description}
   \item[\textbf{OCR-only}]
-  Pure extraction baseline. Uses easyocr on sampled key frames; no language understanding or color filtering.
+  Pure extraction baseline. Uses easyocr on sampled key frames; no language
+  understanding, program inference, or tool use.
 
   \item[\textbf{Yellow-OCR}]
-  Color-filtered OCR baseline. Isolates yellow pixels via HSV masking (hue 20--40, saturation $>$100, value $>$150) before running easyocr. Tests whether color-aware preprocessing can substitute for VLM reasoning.
+  Color-filtered OCR baseline. Isolates yellow pixels via HSV masking before
+  running easyocr. Tests whether color-aware preprocessing can substitute for
+  reasoning or executable recovery.
 
   \item[\textbf{MCP Skill}]
-  Agentic pipeline baseline (\texttt{solve\_captcha.py}): regex-based instruction parsing (S1), ffmpeg execution (S2), and a multi-method extraction chain (S3): QR $\to$ OCR $\to$ VLM $\to$ audio morse $\to$ LSB steganography.
+  Heuristic agentic baseline (\texttt{solve\_captcha.py}): regex-based
+  instruction parsing (S1), \texttt{ffmpeg} execution (S2), and a multi-method
+  extraction chain (S3).
 
-  \item[\textbf{Claude Haiku (claude-haiku-4-5)}]
-  Compact API-first VLM from Anthropic. Optimized for latency and cost.
+  \item[\textbf{Claude Haiku / Sonnet / Opus}]
+  API-first frontier multimodal systems used to probe the gap between prepared
+  extraction and end-to-end recovery.
 
-  \item[\textbf{Claude Sonnet (claude-sonnet-4-6)}]
-  Mid-tier Anthropic VLM. Balances capability and throughput.
-
-  \item[\textbf{Claude Opus (claude-opus-4-6)}]
-  Frontier Anthropic VLM. Establishes the upper bound for single-provider scaling.
-
-  \item[\textbf{GPT-5.4 (codex detailed)}]
-  OpenAI frontier model with agentic tool use. Evaluated via Swarm orchestration with full Bash access.
-
+  \item[\textbf{GPT-5.4}]
+  Tool-using frontier model evaluated through the same full-pipeline protocol.
 \end{description}
 
-\subsection{Main Results}
+\subsection{Current results}
 
 \begin{table}[h]
 \centering\small
-\caption{S3 key extraction from ground-truth corrected frames ($n{=}5$ per level).
-Best per column in \textbf{bold}.}
+\caption{S3 key extraction from ground-truth corrected frames ($n{=}5$ per
+level). Best per column in \textbf{bold}.}
 \label{tab:s3}
 \begin{tabular}{lrrrr|r}
 \toprule
@@ -73,7 +89,10 @@ Opus           & \textbf{100\%} & \textbf{100\%} & \textbf{100\%} & \textbf{100\
 
 \begin{table}[h]
 \centering\small
-\caption{Full pipeline results (video $\to$ key). Agents receive scrambled \texttt{.mp4} and NL instructions with Bash access. TODO: complete after full-pipeline eval.}
+\caption{Full pipeline results (video $\to$ key). This table is intentionally
+left incomplete in the current draft; filling it is a required next experiment
+because the benchmark's main claim concerns the gap between S3-only extraction
+and end-to-end recovery.}
 \label{tab:main}
 \begin{tabular}{lrrrrrr}
 \toprule
@@ -89,23 +108,81 @@ GPT-5.4       & -- & -- & -- & -- & -- & -- \\
 \end{table}
 
 \paragraph{Overview.}
-Table~\ref{tab:s3} reports S3 key extraction accuracy in isolation: each model receives a
-ground-truth corrected frame containing the yellow key and must read it.
-Frontier VLMs (Opus, Sonnet) achieve perfect accuracy, while Haiku drops to 75\%
-on frames where the key is smaller and randomly positioned (visibility level 2).
-OCR baselines perform poorly ($\sim$25\%) due to background text interference from
-Big Buck Bunny credits and scene elements.
-Crucially, S3 in isolation is \emph{not} the binding bottleneck for VLMs---the
-compound difficulty of CIPHER lies in the full pipeline, where agents must also
-identify the correct temporal window containing the key.
+Table~\ref{tab:s3} reports S3 extraction accuracy in isolation: each model
+receives a corrected frame containing the yellow key and must read it. Frontier
+VLMs (Opus, Sonnet) achieve perfect accuracy, while Haiku drops on smaller,
+randomly positioned keys. OCR baselines perform poorly due to background text
+interference and clutter.
 
-\subsection{Per-Level Breakdown}
+Crucially, S3 in isolation is \emph{not} the binding bottleneck for frontier
+models. The benchmark's real difficulty lies in the full recovery policy:
+agents must infer the inverse transformation program, execute it correctly, and
+identify the correct temporal window containing the key. The missing full
+pipeline table is therefore not a cosmetic omission; it is the central
+remaining experiment required to validate the benchmark's main claim.
 
-To isolate the effect of difficulty progression, we analyze exact match separately by level.
-Figure~\ref{fig:per_level} shows EM curves for each model across L1--L5. We expect monotonic
-(or near-monotonic) EM decrease with level difficulty due to compounding effects of low key visibility,
-increased operation count, and instruction ambiguity. Comparing levels reveals which
-capability gaps are inherent to model scale versus which stem from brittleness in specific
-reasoning stages (e.g., rotating operations vs.\ speed-related paraphrase).
-This breakdown also pinpoints where the benchmark meaningfully separates models:
-models that saturate on L1--L2 do not benefit from the data collected at L3--L5.
+\subsection{Video-temporal diagnostic results}
+
+We also ran a controlled DAVIS-2017 video-temporal split in which the model
+must aggregate two consecutive frames and invert a symbolic fragment
+transformation. This split is not yet the full inverse-\texttt{ffmpeg}
+benchmark; it is the current fast iteration domain for studying temporal
+aggregation, solvability, and dense process metrics. The current pool contains
+78 generated tasks with process metrics and 233 model responses across three
+CLI backends. All modern samples in this slice use dynamic DAVIS frame
+sequences and pass the current ``likely-readable'' solvability gate.
+
+\begin{table}[h]
+\centering\small
+\caption{Current DAVIS video-temporal diagnostic slice. EM is strict exact
+match. Missing counts empty/NONE final answers. Partial is dense process
+partial credit. Values are means over response rows; $\pm$ is population
+standard deviation.}
+\label{tab:video-temporal-current}
+\begin{tabular}{lrrrr}
+\toprule
+Backend & $n$ & EM $\uparrow$ & Missing $\downarrow$ & Partial $\uparrow$ \\
+\midrule
+Claude CLI Haiku & 78 & $14.1{\pm}34.8$ & $1.3{\pm}11.2$ & $43.1{\pm}28.6$ \\
+Codex CLI GPT-5.3 Spark & 77 & $0.0{\pm}0.0$ & $100.0{\pm}0.0$ & $6.5{\pm}5.6$ \\
+Gemini CLI Flash Lite & 78 & $0.0{\pm}0.0$ & $98.7{\pm}11.2$ & $5.0{\pm}5.7$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At the task level, 11 of 78 tasks are \emph{strict-good}: at least one model
+achieves EM. A larger set of 45 tasks is \emph{semantic-good}, meaning either
+EM or maximum process partial credit at least 0.25. Finally, 77 tasks have at
+least one non-missing response with partial credit at least 0.15, making them
+usable for debugging even when no backend solves them exactly. The gap between
+strict-good and semantic-good is the most important observation: the split
+contains many failures that are not random, but partially correct trajectories.
+
+The strongest current backend is Claude CLI Haiku, which often identifies the
+operation and produces structured intermediate evidence but still loses
+characters or over-reads distractors on hard samples. Codex Spark and Gemini
+Flash Lite mostly fail by returning no final answer in this setup, although
+their traces occasionally receive small operation/tool credit. This suggests
+that backend/tool framing and response protocol are part of the benchmark
+surface, not merely implementation details.
+
+\subsection{Required experiments for the camera-ready version}
+
+The current draft still lacks the analyses that best express CIPHER's identity
+as a diagnostic benchmark:
+\begin{itemize}
+  \item scaling curves over chain length, instruction ambiguity, distractor
+        density, and temporal sparsity;
+  \item paired S3-only vs full-pipeline comparisons with an explicit
+        execution-gap metric;
+  \item stage-attribution plots for S1, S2, and S3 across model families; and
+  \item a curated failure-seed suite with traces.
+\end{itemize}
+
+The video-temporal slice supplies the first version of this failure-seed suite:
+12 seedbank genomes were selected by validity, non-missing rate, process
+partial credit, frame-localization credit, transform similarity, final-answer
+similarity, and diversity. The selected genomes cover all four fragment
+operations and range from easy validity-tuned settings (4--6 frames, low noise,
+large bright text) to hard-mined settings (7--8 frames, high jitter, distractors,
+and \texttt{swap\_reverse\_chars}).

@@ -1,30 +1,52 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We introduced CIPHER, a procedurally generated benchmark for video-editing captcha solving
-that stress-tests VLMs on a compound task: parsing natural-language edit instructions,
-executing an ffmpeg transformation chain, and extracting a hidden key from the result.
-The three-stage pipeline structure and PipeF1 metric enable fine-grained diagnosis
-of where agent capability breaks down.
+We introduced CIPHER, a procedurally generated benchmark for inverse
+transformation program recovery in tool-using multimodal systems. CIPHER asks
+whether a model can infer, invert, and execute a latent transformation program
+from corrupted video observations and natural-language instructions, then
+localize and extract the target signal. Its three-stage decomposition and
+Pipeline-F1 metric enable fine-grained diagnosis of where the recovery policy
+breaks down.
 
-Our experiments reveal that frontier VLMs solve S3 key extraction near-perfectly
-in isolation (Opus/Sonnet: 100\% EM), while OCR baselines struggle ($\sim$25\%).
-The compound difficulty of CIPHER lies in the full agentic pipeline:
-temporal key localization, correct operation sequencing, and tool execution
-create a challenging integration problem that no evaluated model solves reliably
-across all levels.
+Our current results already show a strong asymmetry: frontier VLMs solve S3 key
+extraction near-perfectly in isolation, while OCR baselines struggle. The more
+important open question, and the central claim CIPHER is designed to measure,
+is the gap between this prepared extraction competence and reliable end-to-end
+policy execution under temporal search and tool use. The benchmark is therefore
+most useful not as a flat leaderboard, but as a diagnostic environment for
+stage-attributed failure analysis and reproducible regression testing.
+
+The new DAVIS video-temporal slice strengthens this claim. Even before the full
+inverse-\texttt{ffmpeg} table is complete, the split-key domain shows that
+strict EM alone hides useful structure: many samples are not solved exactly,
+yet model traces contain partially correct operation, frame-localization, or
+fragment-normalization evidence. This supports CIPHER's core design principle:
+the benchmark should preserve process traces and dense diagnostics rather than
+compress all behavior into a single final-string score.
 
 \paragraph{Limitations.}
-CIPHER focuses on seven deterministic ffmpeg operations;
-generative edits (e.g., inpainting, style transfer) and audio-only keys are out of scope.
-Human baselines are not included in this version.
+CIPHER focuses on a small deterministic \texttt{ffmpeg} vocabulary; generative
+edits and audio-only keys are out of scope. Human baselines are not included in
+this version.
 
 \paragraph{Future work.}
-L6 (QR/morse key encoding), multi-agent solving, and adversarial instruction generation
-are natural extensions. The procedural generator enables zero-cost dataset refresh,
-making CIPHER suitable for ongoing leaderboard tracking.
+The most important next steps are empirical rather than nominal: complete the
+paired S3-only vs full-pipeline table, add scaling curves over chain length,
+instruction ambiguity, distractor density, and temporal sparsity, and curate a
+canonical failure-seed suite with traces. Beyond that, temporal edit expansion,
+multi-frame extraction, and stronger policy-search baselines are natural
+extensions.
+
+For the video-temporal domain specifically, the immediate target is a frozen
+pool of roughly one hundred audited valid samples, balanced across
+\texttt{none}, \texttt{swap\_fragments}, \texttt{reverse\_chars}, and
+\texttt{swap\_reverse\_chars}. This pool should be evaluated with
+Haiku/Sonnet/Opus, Codex, and Gemini backends under paired RPAD-style debiasing
+so that hardness estimates are not dominated by one model family's response
+format or tool-use behavior.
 
 \paragraph{Reproducibility.}
 All code and generation scripts are released at
-\url{https://github.com/Fr0do/cipher}.
-The test manifest (seeds 0--49) is pinned at commit \texttt{TODO}.
+\url{https://github.com/Fr0do/cipher}. The benchmark generator is deterministic
+by seed and level, enabling replay of individual failure cases.
