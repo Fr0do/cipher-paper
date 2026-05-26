@@ -6,7 +6,7 @@ BIBTEX  = bibtex
 
 all: $(MAIN).pdf
 
-$(MAIN).pdf: $(MAIN).tex sections/*.tex references.bib
+$(MAIN).pdf: $(MAIN).tex sections/*.tex checklist.tex references.bib
 	$(LATEX) $(MAIN)
 	$(BIBTEX) $(MAIN)
 	$(LATEX) $(MAIN)
@@ -17,4 +17,4 @@ clean:
 	rm -f sections/*.aux
 
 watch:
-	fswatch -o $(MAIN).tex sections/*.tex references.bib | xargs -n1 -I{} make all
+	fswatch -o $(MAIN).tex sections/*.tex checklist.tex references.bib | xargs -n1 -I{} make all

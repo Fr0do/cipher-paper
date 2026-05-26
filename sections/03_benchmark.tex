@@ -95,6 +95,50 @@ mode yields a cleaner fitness signal for terminal-state readability, after
 which the resulting ladder can be transferred into the full procedural
 benchmark.
 
+\subsection{Skill-driven evolution pipeline}
+\label{sec:skill-pipeline}
+
+The benchmark is generated through a reproducible skill-driven evolution
+pipeline rather than by manual adversarial editing. Each run is anchored by a
+git commit, a YAML configuration, a registered set of mutable slots, and an
+EvoMCP trace bundle. The pipeline exposes two mutation surfaces. GEPA mutates
+only the text genome---prompts, rubrics, and response protocols---while EvoX
+mutates only the program genome---generator parameters, temporal-operation
+choices, backend lanes, and scoring weights. This separation is important: it
+keeps changes to task semantics distinct from changes to the evaluator or
+agent framing.
+
+Operationally, a run begins by verifying the registered slots, then executing
+the corresponding skill command, e.g. \texttt{/evolve evox
+configs/evox\_video\_temporal\_davis\_validity\_tuned.yaml}. The local
+equivalent is the project wrapper
+\texttt{scripts/evomcp\_cipher.py}, which routes EvoX through the same CIPHER
+evaluator used by the MCP server. Each candidate writes
+\texttt{candidate.json}, \texttt{inputs.json}, \texttt{result.json}, event
+logs, and generated media under an artifact directory. These trace bundles are
+the unit of replay, reporting, and paper-table provenance.
+
+For the video-temporal split, we use a two-stage schedule. The first stage is
+validity-first calibration on DAVIS-2017 480p clips
+\citep{davis2017}, using moderate font size, opacity, jitter, frame count, and
+noise. Its objective targets readable samples, low missing-answer rate, and
+nonzero exact match, so that both EM and process partial credit provide usable
+signal. The second stage performs hard mining from the resulting seedbank. It
+does not keep only the scalar best candidate: seeds are selected from all
+candidate traces using validity, non-missing rate, low EM after validity is
+established, process partial credit, frame-localization credit,
+operation-component credit, transform/final-answer similarity, and diversity
+over temporal operations. This prevents the benchmark from collapsing into
+invalid noise while still driving the pool toward frontier-model failures.
+
+The current released pipeline is encoded in three committed configs: a DAVIS
+validity-tuned EvoX pass, a DAVIS weak-seedbank/process hard-mining pass, and a
+Hermes subscription campaign for Codex, Claude, and Gemini lanes. The
+repository also contains a collaborator runbook,
+\texttt{docs/EVOLUTION\_PIPELINE.md}, which specifies the exact filenames,
+slot checks, remote skill mapping, seedbank policy, artifact contract, and
+report regeneration commands.
+
 \begin{table}[h]
 \centering\small
 \caption{Calibrated extraction levels, measured on Claude Sonnet 4.6
